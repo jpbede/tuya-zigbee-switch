@@ -134,7 +134,7 @@ void stub_gpio_simulate_input(hal_gpio_pin_t gpio_pin, uint8_t value) {
     gpio_pins[gpio_pin].callback(gpio_pin, gpio_pins[gpio_pin].callback_arg);
   }
 
-  io_log("GPIO", "Simulated input pin %d = %d", gpio_pin, value);
+  //io_log("GPIO", "Simulated input pin %d = %d", gpio_pin, value);
 }
 
 uint8_t stub_gpio_get_output(hal_gpio_pin_t gpio_pin) {

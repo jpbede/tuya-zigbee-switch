@@ -7,12 +7,15 @@
 #include "zigbee/relay_cluster.h"
 #include "zigbee/switch_cluster.h"
 #include "zigbee/cover_cluster.h"
+#include "zigbee/electrical_measurement_cluster.h"
+#include "zigbee/metering_cluster.h"
 
 #include <stdint.h>
 #include <string.h>
 
 #include "base_components/led.h"
 #include "base_components/network_indicator.h"
+#include "base_components/energy_measurement/hlw8012.h"
 #include "config_nv.h"
 #include "device_config/reset.h"
 #include "hal/system.h"
@@ -21,6 +24,8 @@
 
 // Forward declarations
 void periferals_init(void);
+void energy_monitoring_init(void);
+void _energy_monitoring_task_handler(void *arg);
 
 // extern ota_preamble_t baseEndpoint_otaInfo;
 
@@ -53,6 +58,15 @@ uint8_t relay_clusters_cnt = 0;
 
 zigbee_cover_cluster cover_clusters[3];
 uint8_t cover_clusters_cnt = 0;
+
+// Energy monitoring
+hlw8012_t hlw8012_device;
+energy_meter_t *energy_meter = NULL;
+electrical_measurement_cluster_t elec_meas_cluster;
+metering_cluster_t metering_cluster;
+uint8_t energy_monitoring_enabled = 0;
+uint8_t energy_monitoring_endpoint = 0;
+hal_task_t energy_monitoring_task;
 
 hal_zigbee_cluster clusters[32];
 hal_zigbee_endpoint endpoints[10];
@@ -213,10 +227,33 @@ void parse_config() {
         switch_clusters[index].mode =
             ZCL_ONOFF_CONFIGURATION_SWITCH_TYPE_MOMENTARY;
       }
+    } else if (entry[0] == 'E' && entry[1] == 'P') {
+      // HLW8012/BL0937 energy monitoring: EP<CF_PIN><CF1_PIN><SEL_PIN>
+
+      printf("Config: Found energy monitoring entry\r\n");
+      printf("Config: Parsing HLW8012 pins\r\n");
+      printf("Config: Entry='%s'\r\n", entry);
+
+      hal_gpio_pin_t cf_pin = hal_gpio_parse_pin(entry + 2);
+      hal_gpio_pin_t cf1_pin = hal_gpio_parse_pin(entry + 4);
+      hal_gpio_pin_t sel_pin = hal_gpio_parse_pin(entry + 6);
+
+      if (cf_pin != HAL_INVALID_PIN && cf1_pin != HAL_INVALID_PIN && sel_pin != HAL_INVALID_PIN) {
+        if (hlw8012_init(&hlw8012_device, cf_pin, cf1_pin, sel_pin) == 0) {
+          energy_meter = hlw8012_as_energy_meter(&hlw8012_device);
+          electrical_measurement_cluster_init(&elec_meas_cluster, energy_meter);
+          metering_cluster_init(&metering_cluster, energy_meter);
+          energy_monitoring_enabled = 1;
+          energy_monitoring_endpoint = 1; // Default to endpoint 1
+          printf("Config: HLW8012 on CF=%04x CF1=%04x SEL=%04x\r\n", cf_pin, cf1_pin, sel_pin);
+        }
+      }
     }
   }
 
   periferals_init();
+
+  energy_monitoring_init();
 
   printf("Initializing Zigbee with %d switches, %d relays, %d covers\r\n",
          switch_clusters_cnt, relay_clusters_cnt, cover_clusters_cnt);
@@ -243,6 +280,14 @@ void parse_config() {
 
   hal_ota_cluster_setup(&endpoints[0].clusters[endpoints[0].cluster_count]);
   endpoints[0].cluster_count++;
+
+  // Add energy monitoring clusters to endpoint 0 BEFORE advancing cluster_ptr
+  // This must happen here because the loops below will reassign cluster_ptr
+  if (energy_monitoring_enabled) {
+    electrical_measurement_cluster_add_to_endpoint(&elec_meas_cluster, &endpoints[0]);
+    metering_cluster_add_to_endpoint(&metering_cluster, &endpoints[0]);
+    printf("Energy monitoring clusters added to endpoint 1\r\n");
+  }
 
   for (int index = 0; index < switch_clusters_cnt; index++) {
     if (index != 0) {
@@ -307,6 +352,33 @@ void periferals_init() {
   }
   hal_register_on_network_status_change_callback(
       network_indicator_on_network_status_change);
+}
+
+void energy_monitoring_init() {
+  if (!energy_monitoring_enabled) {
+    return;
+  }
+
+  energy_monitoring_task.handler = _energy_monitoring_task_handler;
+  energy_monitoring_task.arg = NULL;
+  hal_tasks_init(&energy_monitoring_task);
+  hal_tasks_schedule(&energy_monitoring_task, 1000);
+}
+
+void _energy_monitoring_task_handler(void *arg) {
+  (void)arg;
+  
+  // Update measurements from energy IC
+  electrical_measurement_cluster_update(&elec_meas_cluster);
+  metering_cluster_update(&metering_cluster);
+
+  // Send reports if values changed significantly
+  if (hal_zigbee_get_network_status() == HAL_ZIGBEE_NETWORK_JOINED) {
+    electrical_measurement_cluster_report(&elec_meas_cluster);
+    metering_cluster_report(&metering_cluster);
+  }
+
+  hal_tasks_schedule(&energy_monitoring_task, 1000);
 }
 
 // Helper functions

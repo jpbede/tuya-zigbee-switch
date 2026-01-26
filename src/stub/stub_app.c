@@ -91,6 +91,8 @@ void stub_app_print_help(void) {
   puts(
       "  net                                   - Toggle network joined status");
   puts("  set_pin <pin> <0|1>                   - Simulate GPIO input");
+  puts("  pulse_seq <pin> <width_ms> <count>      - Simulate pin pulse "
+       "sequence");
   puts("  read_pin <pin>                        - Read GPIO output");
   puts("  zcl_list_attrs                        - List all Zigbee attributes");
   puts("  zcl_read <ep> <cluster> <attr>        - Read attribute (ep dec, IDs "
@@ -166,6 +168,38 @@ const char *stub_app_attribute_value_to_string(hal_zigbee_attribute *attr,
       buf[0] = '\0';
     }
     break;
+  case ZCL_DATA_TYPE_UINT24:
+    if (attr->size >= 3) {
+      uint32_t val = attr->value[0] | ((uint32_t)attr->value[1] << 8) |
+                     ((uint32_t)attr->value[2] << 16);
+      snprintf(buf, bufsize, "%u", val);
+    } else {
+      buf[0] = '\0';
+    }
+    break;
+  case ZCL_DATA_TYPE_UINT32:
+    if (attr->size >= 4) {
+      uint32_t val = attr->value[0] | ((uint32_t)attr->value[1] << 8) |
+                     ((uint32_t)attr->value[2] << 16) |
+                     ((uint32_t)attr->value[3] << 24);
+      snprintf(buf, bufsize, "%u", val);
+    } else {
+      buf[0] = '\0';
+    }
+    break;
+  case ZCL_DATA_TYPE_UINT48:
+    if (attr->size >= 6) {
+      uint64_t val = (uint64_t)attr->value[0] |
+                     ((uint64_t)attr->value[1] << 8) |
+                     ((uint64_t)attr->value[2] << 16) |
+                     ((uint64_t)attr->value[3] << 24) |
+                     ((uint64_t)attr->value[4] << 32) |
+                     ((uint64_t)attr->value[5] << 40);
+      snprintf(buf, bufsize, "%llu", (unsigned long long)val);
+    } else {
+      buf[0] = '\0';
+    }
+    break;
   case ZCL_DATA_TYPE_CHAR_STR: {
     if (attr->size >= 1) {
       uint8_t len = attr->value[0];
@@ -232,6 +266,46 @@ int stub_app_string_to_attribute_value(hal_zigbee_attribute *attr,
     if (attr->size >= 2) {
       attr->value[0] = (uint8_t)(v & 0xFF);
       attr->value[1] = (uint8_t)((v >> 8) & 0xFF);
+    } else
+      return -3;
+    break;
+  }
+  case ZCL_DATA_TYPE_UINT24: {
+    unsigned int v = 0;
+    if (sscanf(str, "%u", &v) != 1)
+      return -2;
+    if (attr->size >= 3) {
+      attr->value[0] = (uint8_t)(v & 0xFF);
+      attr->value[1] = (uint8_t)((v >> 8) & 0xFF);
+      attr->value[2] = (uint8_t)((v >> 16) & 0xFF);
+    } else
+      return -3;
+    break;
+  }
+  case ZCL_DATA_TYPE_UINT32: {
+    unsigned long v = 0;
+    if (sscanf(str, "%lu", &v) != 1)
+      return -2;
+    if (attr->size >= 4) {
+      attr->value[0] = (uint8_t)(v & 0xFF);
+      attr->value[1] = (uint8_t)((v >> 8) & 0xFF);
+      attr->value[2] = (uint8_t)((v >> 16) & 0xFF);
+      attr->value[3] = (uint8_t)((v >> 24) & 0xFF);
+    } else
+      return -3;
+    break;
+  }
+  case ZCL_DATA_TYPE_UINT48: {
+    unsigned long long v = 0;
+    if (sscanf(str, "%llu", &v) != 1)
+      return -2;
+    if (attr->size >= 6) {
+      attr->value[0] = (uint8_t)(v & 0xFF);
+      attr->value[1] = (uint8_t)((v >> 8) & 0xFF);
+      attr->value[2] = (uint8_t)((v >> 16) & 0xFF);
+      attr->value[3] = (uint8_t)((v >> 24) & 0xFF);
+      attr->value[4] = (uint8_t)((v >> 32) & 0xFF);
+      attr->value[5] = (uint8_t)((v >> 40) & 0xFF);
     } else
       return -3;
     break;

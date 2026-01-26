@@ -116,6 +116,42 @@ static int cmd_pin(int argc, char **argv) {
   return 0;
 }
 
+// pulse_seq <pin> <width_ms> <count>
+static int cmd_pulse_seq(int argc, char **argv) {
+    if (argc != 4) {
+        fprintf(stderr, "Usage: pulse_seq <pin> <width_ms> <count>\n");
+        io_res_err("usage");
+        return -1;
+    }
+    char *e = NULL;
+    long pin = strtol(argv[1], &e, 10);
+    if (*argv[1] == '\0' || *e) {
+        fprintf(stderr, "Bad pin\n");
+        io_res_err("bad_pin=%s", argv[1]);
+        return -1;
+    }
+    long width_ms = strtol(argv[2], &e, 10);
+    if (*argv[2] == '\0' || *e || width_ms < 0) {
+        fprintf(stderr, "Bad width\n");
+        io_res_err("bad_width=%s", argv[2]);
+        return -1;
+    }
+    long count = strtol(argv[3], &e, 10);
+    if (*argv[3] == '\0' || *e || count <= 0) {
+        fprintf(stderr, "Bad count\n");
+        io_res_err("bad_count=%s", argv[3]);
+        return -1;
+    }
+    for (long i = 0; i < count; i++) {
+        stub_gpio_simulate_input((int)pin, 1);
+        stub_millis_step((uint64_t)width_ms);
+        stub_gpio_simulate_input((int)pin, 0);
+        stub_millis_step((uint64_t)width_ms);
+    }
+    io_res_ok("pin=%ld width_ms=%ld count=%ld", pin, width_ms, count);
+    return 0;
+}
+
 static int cmd_zcl_list_attrs(int argc, char **argv) {
   (void)argc;
   (void)argv;
@@ -315,6 +351,7 @@ static const SimpleReplCommand kCmds[] = {
     {"status", cmd_status},
     {"net", cmd_net},
     {"set_pin", cmd_pin},
+    {"pulse_seq", cmd_pulse_seq},
     {"read_pin", cmd_read_pin},
     {"zcl_read", cmd_zcl_read},
     {"zcl_write", cmd_zcl_write},

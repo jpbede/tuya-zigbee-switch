@@ -8,6 +8,7 @@
 #include "hal/zigbee.h"
 #include "hal/zigbee_ota.h"
 #include "zigbee/general_commands.h"
+#include "base_components/energy_measurement/hlw8012.h"
 
 void process_device_type_change() {
   // If device was updated from router to end device or vice versa,
@@ -51,6 +52,11 @@ void app_init(void) {
 static bool boot_announce_sent = false;
 
 void app_task() {
+  // Tick HLW8012 for non-blocking pulse counting
+  if (energy_monitoring_enabled) {
+    hlw8012_tick(&hlw8012_device);
+  }
+
   // TODO: add jitter to avoid all devices trying to join at once
   if (hal_zigbee_get_network_status() != HAL_ZIGBEE_NETWORK_JOINED &&
       hal_zigbee_get_network_status() != HAL_ZIGBEE_NETWORK_JOINING) {

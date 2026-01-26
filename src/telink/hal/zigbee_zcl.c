@@ -50,6 +50,12 @@ static cluster_registerFunc_t get_register_func_by_cluster_id(u16 cluster_id) {
   if (cluster_id == ZCL_CLUSTER_CLOSURES_WINDOW_COVERING) { // Window Covering
     return zcl_windowCovering_register;
   }
+  if (cluster_id == ZCL_CLUSTER_MS_ELECTRICAL_MEASUREMENT) { // Electrical Measurement
+    return zcl_electricalMeasure_register;
+  }
+  if (cluster_id == ZCL_CLUSTER_SE_METERING) { // Metering cluster
+    return zcl_metering_register;
+  }
   return NULL;
 }
 

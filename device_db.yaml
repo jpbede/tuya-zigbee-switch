@@ -3595,3 +3595,29 @@ SWITCH_ZEMISMART_TS0601_6GANG:
   info: Needs pinout. Secondary MCU. 6-gang!
   threads: https://github.com/romasku/tuya-zigbee-switch/issues/209
   store: https://www.zemismart.com/products/tb26-6
+MODULE_TUYA_TS011F_PLUG:
+  human_name: Tuya 1-gang (plug)
+  category: module
+  power: mains
+  neutral: required
+  device_type: router
+  stock_model_name: TS011F
+  stock_manufacturer_name: _TZ3000_waxf6ioi
+  stock_converter_manufacturer: Tuya
+  stock_converter_model: TS011F_plug_1
+  override_z2m_device: null
+  tuya_module: ZTU
+  mcu_family: Telink
+  mcu: TLSR8258
+  config_str: waxf6ioi;TS011F-TUYA;SB4u;RD2;EPC2C3B5;IB7i;M;
+  alt_config_str: null
+  old_manufacturer_names: null
+  old_zb_models: null
+  stock_manufacturer_id: 4417
+  stock_image_type: 54179
+  firmware_image_type: 44576
+  build: yes
+  status: fully_supported
+  info: Supported
+  threads: https://github.com/romasku/tuya-zigbee-switch/issues/261
+  store: https://www.aliexpress.us/item/3256809942562338.html

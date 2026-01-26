@@ -160,6 +160,10 @@ class Device:
         res = self.p.exec(f"set_pin {self._parse_pin(pin)} {val}")
         assert res.ok, f"GPIO failed: {res.payload}"
 
+    def pulse_sequence(self, pin: str, width_ms: int, count: int) -> None:
+        rest = self.p.exec(f"pulse_seq {self._parse_pin(pin)} {width_ms} {count}")
+        assert rest.ok, f"Pin sequence failed: {rest.payload}"
+
     def press_button(
         self,
         pin: str,
@@ -213,6 +217,12 @@ class Device:
     def step_time(self, ms: int) -> None:
         res = self.p.exec(f"step_time {ms}")
         assert res.ok, f"Step time failed: {res.payload}"
+
+    def write_uart(self, data: bytes) -> None:
+        """Write raw bytes to the simulated UART input buffer."""
+        hex_bytes = " ".join(f"{b:02X}" for b in data)
+        res = self.p.exec(f"write_uart {hex_bytes}")
+        assert res.ok, f"Write UART failed: {res.payload}"
 
     def _evt_parser(self, evt: Event) -> None:
         if evt.kind == "gpio":
